@@ -41,37 +41,6 @@ See the [Wallet Topic Page](https://developer.apple.com/wallet/) and the
 
 You will be asked for an export password (or export phrase). In this example it will be `123456`, the script will use this as an argument to output the desired `.pkpass`
 
-4) Ensure you have M2Crypto installed
-
-    sudo easy_install M2Crypto
-
-## Typical Usage
-
-    #!/usr/bin/env python
-
-    from passbook.models import Pass, Barcode, StoreCard
-
-    cardInfo = StoreCard()
-    cardInfo.addPrimaryField('name', 'John Doe', 'Name')
-
-    organizationName = 'Your organization' 
-    passTypeIdentifier = 'pass.com.your.organization' 
-    teamIdentifier = 'AGK5BZEN3E'
-    
-    passfile = Pass(cardInfo, \
-        passTypeIdentifier=passTypeIdentifier, \
-        organizationName=organizationName, \
-        teamIdentifier=teamIdentifier)
-    passfile.serialNumber = '1234567' 
-    passfile.barcode = Barcode(message = 'Barcode message')    
-
-    # Including the icon and logo is necessary for the passbook to be valid.
-    passfile.addFile('icon.png', open('images/icon.png', 'rb'))
-    passfile.addFile('logo.png', open('images/logo.png', 'rb'))
-    
-    # Create and output the Passbook file (.pkpass)
-    password = '123456'
-    passfile.create('certificate.pem', 'private.key', 'wwdr.pem', password , 'test.pkpass')
 
 ## Note: Getting WWDR Certificate
 
@@ -79,24 +48,118 @@ Certificate is available @ http://developer.apple.com/certificationauthority/App
 
 It can be exported from KeyChain into a .pem (e.g. wwdr.pem).
 
-## Testing
+# Typical Usage
 
-You can run the tests with `py.test` or optionally with coverage support 
-(install `pytest-cov` first): 
+## Create passbook file
 
-    py.test --cov
+```python
+from django.conf import settings
+
+from passbook.models import Barcode, BarcodeFormat, EventTicket, Location, Pass
+
+
+def generate_pass(ticket):
+    eventInfo = EventTicket()
+    eventInfo.addPrimaryField("name", "event name", "EVENT")
+    eventInfo.addSecondaryField("where", "event location", "WHERE")
+
+    # QR CODE
+    barcode = Barcode(message="test", format=BarcodeFormat.QR)
+
+    # EVENT LOCATION
+    location = Location(latitude=-44.1, longitude=-22.01)
     
-You can also generate a HTML report of the coverage:
+    passfile = Pass(
+        passInformation=eventInfo,
+        passTypeIdentifier=settings.APPLE_WALLET_PASS_TYPE_ID,
+        teamIdentifier=settings.APPLE_WALLET_TEAM_ID,
+        organizationName="Org Name",
+        backgroundColor="rgb(239,124,78)",
+        foregroundColor="rgb(255,255,255)",
+        labelColor="rgb(0,0,0)",
+        serialNumber="1234121222",
+        description="event description",
+        barcode=barcode,
+        locations=[location] if location else None,
+    )
 
-    py.test --cov-report html
+    # Including the icon and logo is necessary for the passbook to be valid.
+    passfile.addFile("icon.png", open("socialpass-white.png", "rb"))
+    passfile.addFile("logo.png", open("socialpass-white.png", "rb"))
 
-You can run the tests against multiple versions of Python by running `tox` 
-which you need to install first.
+    # GENERATE IN-MEMORY PASSBOOK
+    passfile.create(
+        settings.APPLE_WALLET_CERTIFICATE,
+        settings.APPLE_WALLET_KEY,
+        settings.APPLE_WALLET_WWDR_CERTIFICATE,
+        settings.APPLE_WALLET_PASSWORD,
+    )
+    return passfile
 
-## Credits
 
-Developed by [devartis](http://www.devartis.com).
+```
+It is possible generate the .pkpass file with the command
 
-## Contributors
+```python
+passbook = generate_pass(ticket=ticket)
+# _pass.read() # read bytes
+passbook.writetofile("Event.pkpass")
+```
 
-Martin Bächtold
+To send pkpass file via email 
+```python
+import smtplib
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
+
+def sendGmail(
+    user,
+    pwd,
+    FROM,
+    TO,
+    SUBJECT,
+    textMessage="new test",
+):
+
+    msg = MIMEMultipart()
+    msg["From"] = FROM
+    msg["To"] = TO
+    msg["Date"] = formatdate(localtime=True)
+    msg["Subject"] = SUBJECT
+    msg.attach(MIMEText(textMessage))
+
+    part = MIMEBase("application", "octet-stream")
+
+    passbook = generate_pass(ticket=ticket)
+    part.set_payload(passbook.read())
+    del passbook # just to make sure it was deleted from memory
+
+    encoders.encode_base64(part)
+    part.add_header("Content-Disposition", 'attachment; filename="Event.pkpass"')
+    msg.attach(part)
+
+    try:
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server.ehlo()
+        server.login(user, pwd)
+        server.sendmail(FROM, TO, str(msg))
+        server.close()
+        print("successfully sent the mail")
+    except Exception as e:
+        print(e)
+
+
+if __name__ == "__main__":
+    sendGmail(
+        "sender@email",
+        "sender_password",
+        "sender@email",
+        "receiver@email",
+        "subjective text",
+        "email body text"
+    )
+
+```
