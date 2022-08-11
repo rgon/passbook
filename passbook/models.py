@@ -502,4 +502,6 @@ def PassHandler(obj):
         if isinstance(obj, decimal.Decimal):
             return str(obj)
         else:
-            return obj
+            raise TypeError(
+            "Unserializable object {} of type {}".format(obj, type(obj))
+        )
