@@ -503,5 +503,5 @@ def PassHandler(obj):
             return str(obj)
         else:
             raise TypeError(
-            "Unserializable object {} of type {}".format(obj, type(obj))
-        )
+                "Unserializable object {} of type {}".format(obj, type(obj))
+            )
