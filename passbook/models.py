@@ -9,6 +9,9 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.serialization import pkcs7
 
+class CanNotReadException(Exception):
+    pass
+
 
 class Alignment:
     LEFT = 'PKTextAlignmentLeft'
@@ -50,13 +53,14 @@ class NumberStyle:
 
 class Field(object):
 
-    def __init__(self, key, value, label=''):
-
+    def __init__(
+        self, key, value, label="", changeMessage="", textAlignment=Alignment.LEFT    
+    ):
         self.key = key  # Required. The key must be unique within the scope
         self.value = value  # Required. Value of the field. For example, 42
         self.label = label  # Optional. Label text for the field.
-        self.changeMessage = ''  # Optional. Format string for the alert text that is displayed when the pass is updated
-        self.textAlignment = Alignment.LEFT
+        self.changeMessage = changeMessage  # Optional. Format string for the alert text that is displayed when the pass is updated
+        self.textAlignment = textAlignment
 
     def json_dict(self):
         return self.__dict__
@@ -234,8 +238,24 @@ class StoreCard(PassInformation):
 
 class Pass(object):
 
-    def __init__(self, passInformation, json='', passTypeIdentifier='',
-                 organizationName='', teamIdentifier=''):
+    def __init__(
+        self,
+        passInformation,
+        json='',
+        passTypeIdentifier='',
+        organizationName='',
+        teamIdentifier='',
+        serialNumber='',
+        description='',
+        backgroundColor=None,
+        foregroundColor=None,
+        labelColor=None,
+        logoText=None,
+        locations=None,
+        ibeacons=None,
+        expirationDate=None,
+        barcode=None
+    ):
 
         self._files = {}  # Holds the files to include in the .pkpass
         self._hashes = {}  # Holds the SHAs of the files array
@@ -252,19 +272,19 @@ class Pass(object):
         # signed the pass.
         self.organizationName = organizationName
         # Required. Serial number that uniquely identifies the pass.
-        self.serialNumber = ''
+        self.serialNumber = serialNumber
         # Required. Brief description of the pass, used by the iOS
         # accessibility technologies.
-        self.description = ''
+        self.description = description
         # Required. Version of the file format. The value must be 1.
         self.formatVersion = 1
 
         # Visual Appearance Keys
-        self.backgroundColor = None  # Optional. Background color of the pass
-        self.foregroundColor = None  # Optional. Foreground color of the pass,
-        self.labelColor = None  # Optional. Color of the label text
-        self.logoText = None  # Optional. Text displayed next to the logo
-        self.barcode = None  # Optional. Information specific to barcodes.  This is deprecated and can only be set to original barcode formats.
+        self.backgroundColor = backgroundColor  # Optional. Background color of the pass
+        self.foregroundColor = foregroundColor  # Optional. Foreground color of the pass,
+        self.labelColor = labelColor  # Optional. Color of the label text
+        self.logoText = logoText  # Optional. Text displayed next to the logo
+        self.barcode = barcode  # Optional. Information specific to barcodes.  This is deprecated and can only be set to original barcode formats.
         self.barcodes = None #Optional.  All supported barcodes
         # Optional. If true, the strip image is displayed
         self.suppressStripShine = False
@@ -280,9 +300,9 @@ class Pass(object):
 
         # Optional. Locations where the pass is relevant.
         # For example, the location of your store.
-        self.locations = None
+        self.locations = locations
         # Optional. IBeacons data
-        self.ibeacons = None
+        self.ibeacons = ibeacons
         # Optional. Date and time when the pass becomes relevant
         self.relevantDate = None
 
@@ -293,7 +313,7 @@ class Pass(object):
         # Optional. Additional hidden data in json for the passbook
         self.userInfo = None
 
-        self.expirationDate = None
+        self.expirationDate = expirationDate
         self.voided = None
 
         self.passInformation = passInformation
@@ -303,14 +323,12 @@ class Pass(object):
         self._files[name] = fd.read()
 
     # Creates the actual .pkpass file
-    def create(self, certificate, key, wwdr_certificate, password, zip_file=None):
+    def create(self, certificate, key, wwdr_certificate, password):
         pass_json = self._createPassJson()
         manifest = self._createManifest(pass_json)
         signature = self._createSignatureCrypto(manifest, certificate, key, wwdr_certificate, password)
         # signature = self._createSignature(manifest, certificate, key, wwdr_certificate, password)
-        if not zip_file:
-            zip_file = BytesIO()
-        self._createZip(pass_json, manifest, signature, zip_file=zip_file)
+        zip_file = self._createZip(pass_json, manifest, signature)
         return zip_file
 
     def _createPassJson(self):
@@ -373,6 +391,12 @@ class Pass(object):
         file = open(path)
         return file.read().encode('UTF-8')
 
+    def _encodeStrings(self, value):
+        """
+        Return encoded string
+        """
+        return value.encode('UTF-8')
+
     def _createSignatureCrypto(self, manifest, certificate, key,
                          wwdr_certificate, password):
         """
@@ -381,9 +405,9 @@ class Pass(object):
         The manifest is the file
         containing a list of files included in the pass file (and their hashes).
         """
-        cert = x509.load_pem_x509_certificate(self._readFileBytes(certificate))
-        priv_key = serialization.load_pem_private_key(self._readFileBytes(key), password=password.encode('UTF-8'))
-        wwdr_cert = x509.load_pem_x509_certificate(self._readFileBytes(wwdr_certificate))
+        cert = x509.load_pem_x509_certificate(self._encodeStrings(certificate))
+        priv_key = serialization.load_pem_private_key(self._encodeStrings(key), password=password.encode('UTF-8'))
+        wwdr_cert = x509.load_pem_x509_certificate(self._encodeStrings(wwdr_certificate))
         
         options = [pkcs7.PKCS7Options.DetachedSignature]
         return pkcs7.PKCS7SignatureBuilder()\
@@ -393,14 +417,29 @@ class Pass(object):
                 .sign(serialization.Encoding.DER, options)
 
     # Creates .pkpass (zip archive)
-    def _createZip(self, pass_json, manifest, signature, zip_file=None):
-        zf = zipfile.ZipFile(zip_file or 'pass.pkpass', 'w')
+    def _createZip(self, pass_json, manifest, signature):
+        self.zip_file = BytesIO()
+        zf = zipfile.ZipFile(self.zip_file, 'w') # create in-memory zip
         zf.writestr('signature', signature)
         zf.writestr('manifest.json', manifest)
         zf.writestr('pass.json', pass_json)
         for filename, filedata in self._files.items():
             zf.writestr(filename, filedata)
         zf.close()
+        return self.zip_file
+    
+    def read(self):
+        """Returns a string with the contents of the in-memory zip."""
+        if not self.zip_file:
+            raise CanNotReadException("create a pass file first")
+        self.zip_file.seek(0)
+        return self.zip_file.read()
+
+    def writetofile(self, filename):
+        """Writes the in-memory zip to a file."""
+        f = open(filename, "wb")
+        f.write(self.read())
+        f.close()
 
     def json_dict(self):
         d = {
@@ -463,4 +502,6 @@ def PassHandler(obj):
         if isinstance(obj, decimal.Decimal):
             return str(obj)
         else:
-            return obj
+            raise TypeError(
+                "Unserializable object {} of type {}".format(obj, type(obj))
+            )
