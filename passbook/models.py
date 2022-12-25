@@ -382,16 +382,21 @@ class Pass(object):
     #     pk7.write_der(der)
     #     return der.read()
     
-    def _readFileBytes(self, path):
+    @staticmethod
+    def _readFileBytes(path):
         """
         Utility function to read files as byte data
         :param path: file path
         :returns bytes
         """
-        file = open(path)
-        return file.read().encode('UTF-8')
+        contents = b''
+        with open(path, 'r') as f:
+            contents = f.read()
+        
+        return contents #.decode('UTF-8')
 
-    def _encodeStrings(self, value):
+    @staticmethod
+    def _encodeStrings(value):
         """
         Return encoded string
         """
@@ -406,7 +411,7 @@ class Pass(object):
         containing a list of files included in the pass file (and their hashes).
         """
         cert = x509.load_pem_x509_certificate(self._encodeStrings(certificate))
-        priv_key = serialization.load_pem_private_key(self._encodeStrings(key), password=password.encode('UTF-8'))
+        priv_key = serialization.load_pem_private_key(self._encodeStrings(key), password=password.encode('UTF-8') if password else None)
         wwdr_cert = x509.load_pem_x509_certificate(self._encodeStrings(wwdr_certificate))
         
         options = [pkcs7.PKCS7Options.DetachedSignature]
