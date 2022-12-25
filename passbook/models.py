@@ -254,7 +254,8 @@ class Pass(object):
         locations=None,
         ibeacons=None,
         expirationDate=None,
-        barcode=None
+        barcode=None,
+        sharingProhibited=False,
     ):
 
         self._files = {}  # Holds the files to include in the .pkpass
@@ -278,6 +279,9 @@ class Pass(object):
         self.description = description
         # Required. Version of the file format. The value must be 1.
         self.formatVersion = 1
+
+        # whether to show the Share button on the back of a pass
+        self.sharingProhibited = sharingProhibited
 
         # Visual Appearance Keys
         self.backgroundColor = backgroundColor  # Optional. Background color of the pass
@@ -453,6 +457,7 @@ class Pass(object):
             'organizationName': self.organizationName,
             'passTypeIdentifier': self.passTypeIdentifier,
             'serialNumber': self.serialNumber,
+            'sharingProhibited': self.sharingProhibited,
             'teamIdentifier': self.teamIdentifier,
             'suppressStripShine': self.suppressStripShine,
             self.passInformation.jsonname: self.passInformation.json_dict()
