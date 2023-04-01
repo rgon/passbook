@@ -1,56 +1,68 @@
-# FORK: Use Cryptography instead of M2Crypto
-This fork is updated to use the cryptography library for easy install on windows. In addition, m2crypto seems to be unmaintained.
+# `passbook`: Apple Wallet passes in python
 
-## Installing this fork
-You can install this fork like this:
-```
-pip install git+https://github.com/shivaRamdeen/passbook.git
-```
-
-# Passbook
-
-[![Build Status](https://travis-ci.org/devartis/passbook.svg?branch=master)](https://travis-ci.org/devartis/passbook)
-
-Python library to create Apple Wallet (.pkpass) files (Apple Wallet 
-has previously been known as Passbook in iOS 6 to iOS 8).
+Python library to create Apple Wallet (.pkpass) files (previously known as Passbook).
 
 See the [Wallet Topic Page](https://developer.apple.com/wallet/) and the
-[Wallet Developer Guide](https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195) for more information about Apple Wallet.
+[Wallet Developer Guide](https://developer.apple.com/documentation/walletpasses/building_a_pass) for more information about Apple Wallet.
 
-> If you need the server side implementation (API / WebServices) in django you should check http://github.com/devartis/django-passbook.
+This library is a fork of devartis/passbook with support for modern python 3, and depends only on the `cryptography` library.
 
+## Requirements:
+* An Apple Developer account https://developer.apple.com/
 
-## Getting Started
+## Setup - Credential Ceremony
+Passbook generation requires a certificate generation ceremony, as well as the Apple WWDRCA. These instructions have been tested on Linux.
 
-1) Get a Pass Type Id
+1. Create private key
+    openssl genrsa -out pass.yourcompany.com.key 2048
 
-* Visit the iOS Provisioning Portal -> Pass Type IDs -> New Pass Type ID
-* Select pass type id -> Configure (Follow steps and download generated pass.cer file)
-* Use Keychain tool to export a Certificates.p12 file (need Apple Root Certificate installed)
+2. Create CSR: for submission to CAs
+    openssl req -new -key pass.yourcompany.com.key -out CertificateSigningRequest.csr -subj "/emailAddress=youremail@company.com, CN=YourCompany Pass, C=COUNTRYCODE"
 
-2) Generate the necessary certificate
+3. Download your apple-signed certificate
+https://developer.apple.com/account/resources/certificates/yourAppleID/add
+will download `pass.yourcompany.com.cer`
 
+4. Download the Apple `AppleWWDRCAG4.cer' (*Apple Worldwide Developer Relations Intermediate Certificate Expiration*) from https://www.apple.com/certificateauthority/
+
+5. Convert WWDR Cert to PEM
+    openssl x509 -in AppleWWDRCAG4.cer -out AppleWWDRCAG4.pem
+
+6. Create pem file with cert
+    openssl x509 -in pass.yourcompany.com.cer -inform DER -out pass.pem -outform PEM
+
+In production environments, you should store these credentials in a `.env` file and then import each variable's content on `passfile.create()`.
 ```shell
-    $ openssl pkcs12 -in "Certificates.p12" -clcerts -nokeys -out certificate.pem   
+$ cat certificate.pem
 ```
-3) Generate the key.pem
-
 ```shell
-    $ openssl pkcs12 -in "Certificates.p12" -nocerts -out private.key
+### Apple Wallet Config
+APPLE_WALLET_PASS_TYPE_ID=pass.com.yourcompany.com
+APPLE_WALLET_TEAM_ID=K2K2K2K2K2
+APPLE_WALLET_ORGANIZATION_NAME=
+# Credentials
+APPLE_WALLET_CERTIFICATE="-----BEGIN CERTIFICATE-----
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+_contents of pass.pem
+-----END CERTIFICATE-----"
+APPLE_WALLET_KEY="-----BEGIN PRIVATE KEY-----
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+_contents of pass.yourcompany.com.key
+-----END PRIVATE KEY-----"
 ```
 
-You will be asked for an export password (or export phrase). In this example it will be `123456`, the script will use this as an argument to output the desired `.pkpass`
+## Setup
+
+1. Certificate is available @ http://developer.apple.com/certificationauthority/AppleWWDRCA.cer
 
 
-## Note: Getting WWDR Certificate
+## Install
+You can install this fork like this:
+```
+pip install git+https://github.com/rgon/passbook.git
+```
 
-Certificate is available @ http://developer.apple.com/certificationauthority/AppleWWDRCA.cer
-
-It can be exported from KeyChain into a .pem (e.g. wwdr.pem).
-
-# Typical Usage
-
-## Create passbook file
+## Usage
 
 ```python
 from django.conf import settings
@@ -163,3 +175,7 @@ if __name__ == "__main__":
     )
 
 ```
+
+## Resulting pass validation:
+You may test the passes validity in
+https://pkpassvalidator.azurewebsites.net/ (not affiliated).
