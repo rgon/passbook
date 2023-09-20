@@ -143,7 +143,7 @@ class Location(object):
 
 
 class IBeacon(object):
-    def __init__(self, proximityuuid:str, major:str, minor:str, relevantText:str=''):
+    def __init__(self, proximityuuid:str, major:str|None, minor:str|None, relevantText:str=''):
         # IBeacon data
         self.proximityUUID = proximityuuid
         self.major = major
@@ -153,7 +153,12 @@ class IBeacon(object):
         self.relevantText = relevantText
     
     def json_dict(self):
-        return self.__dict__
+        res = self.__dict__
+        if self.major is None:
+            del res['major']
+        if self.minor is None:
+            del res['minor']
+        return res
 
 
 class PassInformation(object):
