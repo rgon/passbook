@@ -143,15 +143,15 @@ class Location(object):
 
 
 class IBeacon(object):
-    def __init__(self, proximityuuid, major, minor):
+    def __init__(self, proximityuuid:str, major:str, minor:str, relevantText:str=''):
         # IBeacon data
         self.proximityUUID = proximityuuid
         self.major = major
         self.minor = minor
 
         # Optional. Text message where near the ibeacon
-        self.relevantText = ''
-
+        self.relevantText = relevantText
+    
     def json_dict(self):
         return self.__dict__
 
