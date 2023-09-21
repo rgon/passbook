@@ -261,6 +261,8 @@ class Pass(object):
         expirationDate=None,
         barcodes=None,
         sharingProhibited=False,
+        webServiceURL=None,
+        authenticationToken=None,
     ):
 
         self._files = {}  # Holds the files to include in the .pkpass
@@ -300,9 +302,9 @@ class Pass(object):
         # Web Service Keys
 
         # Optional. If present, authenticationToken must be supplied
-        self.webServiceURL = None
+        self.webServiceURL = webServiceURL
         # The authentication token to use with the web service
-        self.authenticationToken = None
+        self.authenticationToken = authenticationToken
 
         # Relevance Keys
 
