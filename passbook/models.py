@@ -4,6 +4,7 @@ import hashlib
 import json
 import zipfile
 from io import BytesIO
+from typing import Optional
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -52,9 +53,8 @@ class NumberStyle:
 
 
 class Field(object):
-
     def __init__(
-        self, key, value, label="", changeMessage="", textAlignment=Alignment.LEFT    
+        self, key:str, value:str, label:str="", changeMessage:str="", textAlignment:Alignment=Alignment.LEFT    
     ):
         self.key = key  # Required. The key must be unique within the scope
         self.value = value  # Required. Value of the field. For example, 42
@@ -67,7 +67,6 @@ class Field(object):
 
 
 class DateField(Field):
-
     def __init__(self, key, value, label='', dateStyle=DateStyle.SHORT,
                  timeStyle=DateStyle.SHORT, ignoresTimeZone=False):
         super().__init__(key, value, label)
@@ -82,7 +81,6 @@ class DateField(Field):
 
 
 class NumberField(Field):
-
     def __init__(self, key, value, label=''):
         super().__init__(key, value, label)
         self.numberStyle = NumberStyle.DECIMAL  # Style of date to display
@@ -92,7 +90,6 @@ class NumberField(Field):
 
 
 class CurrencyField(Field):
-
     def __init__(self, key, value, label='', currencyCode=''):
         super().__init__(key, value, label)
         self.currencyCode = currencyCode  # ISO 4217 currency code
@@ -102,11 +99,10 @@ class CurrencyField(Field):
 
 
 class Barcode(object):
-
-    def __init__(self, message, format=BarcodeFormat.PDF417, altText='', messageEncoding='iso-8859-1'):
+    def __init__(self, message:str, format:BarcodeFormat=BarcodeFormat.PDF417, altText='', messageEncoding:str='iso-8859-1'):
         self.format = format
         self.message = message  # Required. Message or payload to be displayed as a barcode
-        self.messageEncoding = messageEncoding  # Required. Text encoding that is used to convert the message
+        self.messageEncoding = messageEncoding  # The IANA character set name of the text encoding to use to convert message from a string representation to a data representation that the system renders as a barcode, such as “iso-8859-1”.
         if altText:
             self.altText = altText  # Optional. Text displayed near the barcode
 
@@ -115,7 +111,6 @@ class Barcode(object):
 
 
 class Location(object):
-
     def __init__(self, latitude, longitude, altitude=0.0):
         # Required. Latitude, in degrees, of the location.
         try:
@@ -162,7 +157,6 @@ class IBeacon(object):
 
 
 class PassInformation(object):
-
     def __init__(self):
         self.headerFields = []
         self.primaryFields = []
@@ -201,7 +195,6 @@ class PassInformation(object):
 
 
 class BoardingPass(PassInformation):
-
     def __init__(self, transitType=TransitType.AIR):
         super().__init__()
         self.transitType = transitType
@@ -214,55 +207,51 @@ class BoardingPass(PassInformation):
 
 
 class Coupon(PassInformation):
-
     def __init__(self):
         super().__init__()
         self.jsonname = 'coupon'
 
 
 class EventTicket(PassInformation):
-
     def __init__(self):
         super().__init__()
         self.jsonname = 'eventTicket'
 
 
 class Generic(PassInformation):
-
     def __init__(self):
         super().__init__()
         self.jsonname = 'generic'
 
 
 class StoreCard(PassInformation):
-
     def __init__(self):
         super().__init__()
         self.jsonname = 'storeCard'
 
 
 class Pass(object):
-
     def __init__(
         self,
-        passInformation,
-        json='',
-        passTypeIdentifier='',
-        organizationName='',
-        teamIdentifier='',
-        serialNumber='',
-        description='',
-        backgroundColor=None,
-        foregroundColor=None,
-        labelColor=None,
-        logoText=None,
-        locations=None,
-        ibeacons=None,
-        expirationDate=None,
-        barcodes=None,
-        sharingProhibited=False,
-        webServiceURL=None,
-        authenticationToken=None,
+        passInformation:PassInformation,
+        description:str,
+        organizationName:str,
+        passTypeIdentifier:str,
+        serialNumber:str,
+        teamIdentifier:str,
+        # json='',
+        backgroundColor:Optional[str]=None, # rgb(20,30,40)
+        foregroundColor:Optional[str]=None,
+        labelColor:Optional[str]=None,
+
+        logoText:Optional[str]=None,
+        locations:Optional[list[Location]]=None,
+        ibeacons:Optional[list[IBeacon]]=None,
+        expirationDate:Optional[str]=None,
+        barcodes:Optional[list[Barcode]|Barcode]=None,
+        sharingProhibited:bool=False,
+        webServiceURL:Optional[str]=None,
+        authenticationToken:Optional[str]=None,
     ):
 
         self._files = {}  # Holds the files to include in the .pkpass
