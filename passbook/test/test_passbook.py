@@ -2,7 +2,7 @@
 import json
 
 import pytest
-from path import Path
+from pathlib import Path
 
 from passbook.models import Barcode, BarcodeFormat, Pass, StoreCard
 

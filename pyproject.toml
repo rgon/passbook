@@ -1,17 +1,16 @@
 [tool.poetry]
 name = "passbook"
-version = "1.1.0"
+version = "1.1.1"
 description = "Apple Wallet pass creation library."
 authors = ["Gonzalo Ruiz <rgon@rgon.es>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-cryptography = "^42.0.8"
+python = "^3.12"
+cryptography = "^44.0.2||^43.0.0||^42.0.8"
 
 [tool.poetry.dev-dependencies]
-pytest = "^8.2.2"
-path = "^16.0.0"
+pytest = "^8.3.5"
 
 [build-system]
 requires = ["poetry-core>=1.1.0"]
